@@ -38,7 +38,7 @@ const server = Bun.serve({
   port: 12000,
   async fetch(request, server) {
     const url = new URL(request.url);
-    console.log("URL:", url.href);
+    console.log(request.method, url.href);
 
     if (url.pathname === "/ask/powerstatus") {
       if (request.method === "GET") {
@@ -50,6 +50,14 @@ const server = Bun.serve({
           command = content;
           return new Response();
         }
+      }
+    } else if (url.pathname === "/form") {
+      if (request.method === "GET") {
+        const headers = new Headers();
+        headers.set("content-type", "text/html");
+        const file = Bun.file("./views/index.html");
+        const content = await file.text();
+        return new Response(content, { headers });
       }
     }
 
