@@ -50,7 +50,7 @@ const server = Bun.serve({
         console.log(content)
         if (content === "turn on") {
           command = content;
-          return new Response();
+          return new Response("Command sent");
         }
       }
     } else if (url.pathname === "/form") {
