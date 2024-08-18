@@ -1,5 +1,4 @@
-let powerstatus = "0";
-let lastPowerstatus = "0";
+let command = "";
 
 const putear = () => {
   console.error(`${Bun.argv[0]} ${Bun.argv[1]} <client-timeout> <interval>`);
@@ -19,14 +18,13 @@ console.info("interval =", interval);
 const waitForChange = (timeout: number) => {
   return new Promise<string>((resolve) => {
     const start = Date.now();
-    // const interval = 100;
 
     const check = () => {
-      if (powerstatus !== lastPowerstatus) {
-        lastPowerstatus = powerstatus;
-        resolve(lastPowerstatus);
+      if (command === "turn on") {
+        command = "";
+        resolve("on");
       } else if (Date.now() - start >= timeout) {
-        resolve(lastPowerstatus);
+        resolve("timeout");
       } else {
         setTimeout(check, interval);
       }
@@ -48,9 +46,9 @@ const server = Bun.serve({
         return new Response(value);
       } else if (request.method === "PUT") {
         const content = await request.text();
-        if (content === "1" || content === "0") {
-          powerstatus = content;
-          return new Response(content);
+        if (content === "turn on") {
+          command = content;
+          return new Response();
         }
       }
     }
