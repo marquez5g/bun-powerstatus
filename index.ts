@@ -44,8 +44,10 @@ const server = Bun.serve({
       if (request.method === "GET") {
         const value = await waitForChange(clientTimeout); // 10000
         return new Response(value);
-      } else if (request.method === "PUT") {
-        const content = await request.text();
+      } else if (request.method === "POST") {
+        const formData = await request.formData();
+        const content = formData.get("value");
+        console.log(content)
         if (content === "turn on") {
           command = content;
           return new Response();
