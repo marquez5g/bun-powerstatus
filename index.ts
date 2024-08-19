@@ -1,4 +1,3 @@
-let command = "";
 const interval = Number(Bun.argv[2]);
 if (isNaN(interval)) putear();
 console.info("interval =", interval);
