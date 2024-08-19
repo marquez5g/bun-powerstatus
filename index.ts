@@ -1,32 +1,41 @@
 let command = "";
+const interval = Number(Bun.argv[2]);
+if (isNaN(interval)) putear();
+console.info("interval =", interval);
+let command = "";
+let actionCompleted = false;
 
 const putear = () => {
-  console.error(`${Bun.argv[0]} ${Bun.argv[1]} <client-timeout> <interval>`);
+  console.error(`${Bun.argv[0]} ${Bun.argv[1]} <interval>`);
   process.exit(1);
 };
 
-if (Bun.argv.length != 4) putear();
+if (Bun.argv.length != 3) putear();
 
-const clientTimeout = Number(Bun.argv[2]);
-const interval = Number(Bun.argv[3]);
-
-if (isNaN(clientTimeout) || isNaN(interval)) putear();
-
-console.info("clientTimeout =", clientTimeout);
-console.info("interval =", interval);
-
-const waitForChange = (timeout: number) => {
-  return new Promise<string>((resolve) => {
-    const start = Date.now();
-
+const waitForClientAction = () => {
+  return new Promise((resolve) => {
     const check = () => {
-      if (command === "turn on") {
-        command = "";
-        resolve("on");
-      } else if (Date.now() - start >= timeout) {
-        resolve("timeout");
+      if (actionCompleted) {
+        actionCompleted = false; // Reset after acknowledging the action
+        resolve("Action completed");
       } else {
-        setTimeout(check, interval);
+        setTimeout(check, 100); // Check every 100 ms
+      }
+    };
+
+    check();
+  });
+};
+
+const waitForESPCommand = () => {
+  return new Promise((resolve) => {
+    const check = () => {
+      if (command) {
+        const currentCommand = command;
+        command = ""; // Reset command after reading
+        resolve(currentCommand);
+      } else {
+        setTimeout(check, 100); // Check every 100 ms
       }
     };
 
@@ -36,20 +45,39 @@ const waitForChange = (timeout: number) => {
 
 const server = Bun.serve({
   port: 12000,
-  async fetch(request, server) {
+  async fetch(request) {
     const url = new URL(request.url);
     console.log(request.method, url.href);
 
-    if (url.pathname === "/ask/powerstatus") {
+    if (url.pathname === "/client/waitForAction") {
       if (request.method === "GET") {
-        const value = await waitForChange(clientTimeout); // 10000
-        return new Response(value);
-      } else if (request.method === "POST") {
+        // Respond with "Action completed" or wait for it to complete
+        const response = await waitForClientAction();
+        return new Response(response);
+      }
+    } else if (url.pathname === "/esp/checkCommand") {
+      if (request.method === "GET") {
+        // Respond with command or wait for it to be set
+        const response = await waitForESPCommand();
+        return new Response(response);
+      }
+    } else if (url.pathname === "/esp/confirmAction") {
+      if (request.method === "POST") {
         const formData = await request.formData();
         const content = formData.get("value");
-        console.log(content)
+
+        if (content === "completed") {
+          actionCompleted = true; // Set flag to notify client
+          return new Response("Action confirmed");
+        }
+      }
+    } else if (url.pathname === "/submitCommand") {
+      if (request.method === "POST") {
+        const formData = await request.formData();
+        const content = formData.get("value");
+
         if (content === "turn on") {
-          command = content;
+          command = content; // Store the command for ESP
           return new Response("Command sent");
         }
       }
@@ -68,3 +96,4 @@ const server = Bun.serve({
 });
 
 console.log(`Listening on ${server.url}`);
+

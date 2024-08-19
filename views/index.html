@@ -1,14 +1,99 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Form</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Form</title>
+  <style>
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: #f4f4f9;
+    }
+
+    form {
+      background-color: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+
+    input[type="submit"] {
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.1s ease;
+    }
+
+    input[type="submit"]:hover {
+      background-color: #0056b3;
+    }
+
+    input[type="submit"]:active {
+      transform: scale(0.98);
+    }
+
+    #status {
+      margin-top: 20px;
+      font-size: 16px;
+      color: #333;
+    }
+  </style>
 </head>
 <body>
-    <form action="/ask/powerstatus" method="post">
-        <input type="hidden" name="value" value="turn on">
-        <input type="submit" value="Turn On">
-    </form>
+  <form id="commandForm" action="/submitCommand" method="post">
+    <input type="hidden" name="value" value="turn on">
+    <input type="submit" value="Turn On">
+  </form>
+  <div id="status">Waiting for action...</div>
+
+  <script>
+    const form = document.getElementById('commandForm');
+    const statusDiv = document.getElementById('status');
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      statusDiv.textContent = "Command sent. Waiting for ESP to respond...";
+
+      // Send the POST request to /submitCommand
+      const formData = new FormData(form);
+      const response = await fetch('/submitCommand', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (response.ok) {
+        pollForAction();
+      } else {
+        statusDiv.textContent = "Error sending command.";
+      }
+    });
+
+    async function pollForAction() {
+      try {
+        // Long poll for ESP confirmation
+        while (true) {
+          const response = await fetch('/client/waitForAction');
+          const text = await response.text();
+
+          if (text === 'Action completed') {
+            statusDiv.textContent = "ESP has completed the action!";
+            break;
+          }
+        }
+      } catch (error) {
+        statusDiv.textContent = "Error during long polling.";
+      }
+    }
+  </script>
 </body>
 </html>
